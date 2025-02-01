@@ -31,22 +31,22 @@ runcmd:
 
 After the main.tf is done, use these terraform commands
 
-
+```
 terraform init
-(makes a terraform directory with config files like git init )
+#(makes a terraform directory with config files like git init )
 
 terraform fmt
-(formats the main.tf file)
+#(formats the main.tf file)
 
 terraform validate
-(checks for errors in the main.tf file)
+#(checks for errors in the main.tf file)
 
 terraform plan
-(shows what Terraform will do when you run terraform apply)
+#(shows what Terraform will do when you run terraform apply)
 
 terraform apply
-(runs the main.tf file)
-
+#(runs the main.tf file)
+```
 
 after doing terraform apply, you should see the dns and public ip of the instance.
 Copy the dns and use ssh -i to connect to the instance.
