@@ -1,176 +1,149 @@
-# configure version of aws provider plugin
-# https://developer.hashicorp.com/terraform/language/terraform#terraform
+# Configure the version of the AWS provider plugin
 terraform {
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+    aws = {  # Specify the AWS provider
+      source  = "hashicorp/aws"  # Source location of the provider
+      version = "~> 5.0"  # Use version 5.0 or any compatible newer version
     }
   }
 }
 
-# Configure the AWS Provider
+# Configure the AWS Provider with the specified region
 provider "aws" {
-  region = "us-west-2"
+  region = "us-west-2"  # Set the AWS region to US West (Oregon)
 }
 
-# https://developer.hashicorp.com/terraform/language/values/locals
+# Define local variables
 locals {
-  lab4_marcus = "lab_week_4"
+  lab4_marcus = "lab_week_4"  # Local variable for project tagging
 }
 
-# get the most recent ami for Ubuntu 24.04 owned by amazon
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/ami
+# Data source to get the most recent Ubuntu 24.04 AMI owned by Amazon
 data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["amazon"]
+  most_recent = true  # Get the most recent AMI
+  owners      = ["amazon"]  # AMI owner is Amazon
 
   filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+    name   = "name"  # Filter by name
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]  # AMI name pattern
   }
 }
 
-# Create a VPC
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
+# Create a Virtual Private Cloud (VPC)
 resource "aws_vpc" "web" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+  cidr_block           = "10.0.0.0/16"  # CIDR block for the VPC
+  enable_dns_support   = true  # Enable DNS support
+  enable_dns_hostnames = true  # Enable DNS hostnames
 
   tags = {
-    Name    = "project_vpc"
-    Project = local.lab4_marcus
+    Name    = "project_vpc"  # Tag for the VPC
+    Project = local.lab4_marcus  # Project tag using local variable
   }
 }
 
-# Create a public subnet
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
-# To use the free tier t2.micro ec2 instance you have to declare an AZ
-# Some AZs do not support this instance type
+# Create a public subnet within the VPC
 resource "aws_subnet" "web" {
-  vpc_id                  = aws_vpc.web.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-west-2a"
-  map_public_ip_on_launch = true
+  vpc_id                  = aws_vpc.web.id  # Associate with the VPC
+  cidr_block              = "10.0.1.0/24"  # CIDR block for the subnet
+  availability_zone       = "us-west-2a"  # Specify the availability zone
+  map_public_ip_on_launch = true  # Automatically assign public IPs
 
   tags = {
-    Name    = "Web"
-    Project = local.lab4_marcus
+    Name    = "Web"  # Tag for the subnet
+    Project = local.lab4_marcus  # Project tag using local variable
   }
 }
 
-# Create internet gateway for VPC
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/internet_gateway
+# Create an Internet Gateway for the VPC
 resource "aws_internet_gateway" "web-gw" {
-  vpc_id = aws_vpc.web.id
+  vpc_id = aws_vpc.web.id  # Associate with the VPC
 
   tags = {
-    Name    = "Web"
-    Project = local.lab4_marcus
-
+    Name    = "Web"  # Tag for the Internet Gateway
+    Project = local.lab4_marcus  # Project tag using local variable
   }
 }
 
-# create route table for web VPC 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
+# Create a route table for the VPC
 resource "aws_route_table" "web" {
-  vpc_id = aws_vpc.web.id
+  vpc_id = aws_vpc.web.id  # Associate with the VPC
 
   tags = {
-    Name    = "web-route"
-    Project = local.lab4_marcus
+    Name    = "web-route"  # Tag for the route table
+    Project = local.lab4_marcus  # Project tag using local variable
   }
 }
 
-# add route to to route table
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
+# Add a default route to the route table
 resource "aws_route" "default_route" {
-  route_table_id         = aws_route_table.web.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.web-gw.id
+  route_table_id         = aws_route_table.web.id  # Associate with the route table
+  destination_cidr_block = "0.0.0.0/0"  # Route for all traffic
+  gateway_id             = aws_internet_gateway.web-gw.id  # Use the Internet Gateway
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association
+# Associate the route table with the subnet
 resource "aws_route_table_association" "web" {
-  subnet_id      = aws_subnet.web.id
-  route_table_id = aws_route_table.web.id
+  subnet_id      = aws_subnet.web.id  # Associate with the subnet
+  route_table_id = aws_route_table.web.id  # Associate with the route table
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
+# Create a security group for the VPC
 resource "aws_security_group" "web" {
-  name        = "allow_ssh"
-  description = "allow ssh from home and work"
-  vpc_id      = aws_vpc.web.id
+  name        = "allow_ssh"  # Name of the security group
+  description = "allow ssh from home and work"  # Description of the security group
+  vpc_id      = aws_vpc.web.id  # Associate with the VPC
 
   tags = {
-    Name    = "Web"
-    Project = local.lab4_marcus
+    Name    = "Web"  # Tag for the security group
+    Project = local.lab4_marcus  # Project tag using local variable
   }
 }
 
-# Allow ssh
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule
+# Allow SSH access in the security group
 resource "aws_vpc_security_group_ingress_rule" "web-ssh" {
-  security_group_id = aws_security_group.web.id
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 22
-  to_port           = 22
-  ip_protocol       = "tcp"
-
-
+  security_group_id = aws_security_group.web.id  # Associate with the security group
+  cidr_ipv4         = "0.0.0.0/0"  # Allow access from anywhere
+  from_port         = 22  # SSH port
+  to_port           = 22  # SSH port
+  ip_protocol       = "tcp"  # Protocol type
 }
 
-# allow http
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_ingress_rule
+# Allow HTTP access in the security group
 resource "aws_vpc_security_group_ingress_rule" "web-http" {
-  security_group_id = aws_security_group.web.id
-  cidr_ipv4         = "0.0.0.0/0"
-  from_port         = 80
-  to_port           = 80
-  ip_protocol       = "tcp"
+  security_group_id = aws_security_group.web.id  # Associate with the security group
+  cidr_ipv4         = "0.0.0.0/0"  # Allow access from anywhere
+  from_port         = 80  # HTTP port
+  to_port           = 80  # HTTP port
+  ip_protocol       = "tcp"  # Protocol type
 }
 
-# allow all out
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_security_group_egress_rule
+# Allow all outbound traffic in the security group
 resource "aws_vpc_security_group_egress_rule" "web-egress" {
-  security_group_id = aws_security_group.web.id
-
-  cidr_ipv4   = "0.0.0.0/0"
-  ip_protocol = -1
+  security_group_id = aws_security_group.web.id  # Associate with the security group
+  cidr_ipv4   = "0.0.0.0/0"  # Allow all outbound traffic
+  ip_protocol = -1  # All protocols
 }
 
-# use an existing key pair on host machine with file func
-# if we weren't adding the public key in the cloud-init script we could import a public 
-# using the aws_key_pair resource block
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/key_pair
-# resource "aws_key_pair" "local_key" {
-#   key_name   = "web-key"
-#   public_key = file("~/.ssh/web-key.pub")
-# }
-
-# create the ec2 instance
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance
+# Create an EC2 instance
 resource "aws_instance" "web" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.web.id
-  vpc_security_group_ids = [aws_security_group.web.id]
-  key_name               = "web-key"
-  user_data              = file("~/lab4/4640-w4-lab-start-w25/scripts/cloud-config.yaml")
+  ami                    = data.aws_ami.ubuntu.id  # Use the AMI from the data source
+  instance_type          = "t2.micro"  # Instance type
+  subnet_id              = aws_subnet.web.id  # Associate with the subnet
+  vpc_security_group_ids = [aws_security_group.web.id]  # Associate with the security group
+  key_name               = "web-key"  # Key pair name
+  user_data              = file("~/lab4/4640-w4-lab-start-w25/scripts/cloud-config.yaml")  # User data script
 
   tags = {
-    Name    = "Web"
-    Project = local.lab4_marcus
+    Name    = "Web"  # Tag for the instance
+    Project = local.lab4_marcus  # Project tag using local variable
   }
 }
 
-# print public ip and dns to terminal
-# https://developer.hashicorp.com/terraform/language/values/outputs
+# Output the public IP and DNS of the EC2 instance
 output "instance_ip_addr" {
-  description = "The public IP and dns of the web ec2 instance."
+  description = "The public IP and dns of the web ec2 instance."  # Description of the output
   value = {
-    "public_ip" = aws_instance.web.public_ip
-    "dns_name"  = aws_instance.web.public_dns
+    "public_ip" = aws_instance.web.public_ip  # Public IP of the instance
+    "dns_name"  = aws_instance.web.public_dns  # Public DNS of the instance
   }
 }
